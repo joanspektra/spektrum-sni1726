@@ -2,14 +2,20 @@ import streamlit as st
 import numpy as np
 import matplotlib.pyplot as plt
 
-st.set_page_config(page_title="Respons Spektrum - SNI 1726:2019")
+# Konfigurasi halaman
+st.set_page_config(page_title="Respons Spektrum SNI 1726:2019", layout="wide")
 
-st.title("Respons Spektrum Berdasarkan SNI 1726:2019")
-st.markdown("Lokasi: **Bujur 124.778151, Lintang 1.435556**")
+# Judul
+st.title("Respons Spektrum Desain (SNI 1726:2019)")
+st.write("Lokasi: Lat 1.435556, Lon 124.778151")
+st.write("SS=1.0726, S1=0.4772")
 
+# Parameter gempa
 Ss = 1.072598
 S1 = 0.477211
+TL = 6.0  # Periode panjang default
 
+# Faktor kelas situs (SNI 1726:2019 Tabel 5)
 site_classes = {
     "Kelas A": (0.8, 0.8),
     "Kelas B": (0.9, 0.9),
@@ -18,34 +24,35 @@ site_classes = {
     "Kelas E": (1.4, 1.5),
 }
 
-site_class = st.selectbox("Pilih Kelas Situs:", list(site_classes.keys()))
-Fa, Fv = site_classes[site_class]
+# Generate kurva
+T = np.linspace(0.001, 4, 400)
+fig, ax = plt.subplots(figsize=(10, 6))
 
-SMS = Ss * Fa
-SM1 = S1 * Fv
+for kelas, (Fa, Fv) in site_classes.items():
+    SMS = Ss * Fa
+    SM1 = S1 * Fv
+    TS = SM1 / SMS
+    T0 = 0.2 * TS
 
-TL = 6  # Batas periode panjang
+    Sa = []
+    for t in T:
+        if t < T0:
+            Sa.append(SMS * (0.4 + 0.6 * t / T0))  # Naik linear
+        elif t <= TS:
+            Sa.append(SMS)  # Datar
+        elif t <= TL:
+            Sa.append(SM1 / t)  # Turun 1/t
+        else:
+            Sa.append(SM1 * TL / (t ** 2))  # Turun 1/t²
 
-T = np.linspace(0, 4, 400)
-Sa = []
+    ax.plot(T, Sa, label=kelas)
 
-for t in T:
-    if t < 0.2 * SM1 / SMS:
-        Sa.append(SMS * (0.4 + 3 * t / (0.2 * SM1 / SMS)))
-    elif t <= SM1 / SMS:
-        Sa.append(SMS)
-    elif t <= TL:
-        Sa.append(SM1 / t)
-    else:
-        Sa.append(SM1 * TL / (t ** 2))
-
-Sa = np.array(Sa)
-
-fig, ax = plt.subplots()
-ax.plot(T, Sa, label=f"Kelas Situs: {site_class}")
-ax.set_title("Kurva Respons Spektrum")
+# Format plot
+ax.set_title("Respons Spektrum Desain (SNI 1726:2019)\nLokasi: Lat 1.435556, Lon 124.778151\nSS=1.0726, S1=0.4772")
 ax.set_xlabel("Periode (detik)")
 ax.set_ylabel("Percepatan Spektral (g)")
 ax.grid(True)
-ax.legend()
+ax.legend(title="Kelas Situs")
+
+# Tampilkan grafik di Streamlit
 st.pyplot(fig)
